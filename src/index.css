@@ -1,0 +1,24 @@
+@import url("https://fonts.googleapis.com/css2?family=VT323&display=swap");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  font-family: "VT323", monospace;
+
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+
+input[type="number"].no-arrows::-webkit-outer-spin-button,
+input[type="number"].no-arrows::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Hide the arrows in Firefox */
+input[type="number"].no-arrows {
+  -moz-appearance: textfield;
+}
