@@ -11,10 +11,7 @@ export function WalletConnectionProvider({ children }) {
   const network = WalletAdapterNetwork.Devnet;
   const endpoint = useMemo(() => clusterApiUrl(network), [network]);
 
-  const wallets = useMemo(
-    () => [new PhantomWalletAdapter()],
-    [network]
-  );
+  const wallets = useMemo(() => [new PhantomWalletAdapter()], []);
 
   return (
     <ConnectionProvider endpoint={endpoint}>
@@ -25,11 +22,11 @@ export function WalletConnectionProvider({ children }) {
   );
 }
 
-//npm install @solana/web3.js @solana/wallet-adapter-react @solana/wallet-adapter-react-ui @solana/wallet-adapter-wallets @solana/spl-token
-//npm install customize-cra url-polyfill stream-http https-browserify stream-browserify crypto-browserify buffer process
-//npm install axios
-//npm uninstall micro-ftch
-//npm install react-app-rewired customize-cra
-//npm install url
-//npm install browserify-zlib
-//npm install @jup-ag/core
+// npm install @solana/web3.js @solana/wallet-adapter-react @solana/wallet-adapter-react-ui @solana/wallet-adapter-wallets @solana/spl-token
+// npm install customize-cra url-polyfill stream-http https-browserify stream-browserify crypto-browserify buffer process
+// npm install axios
+// npm uninstall micro-ftch
+// npm install react-app-rewired customize-cra
+// npm install url
+// npm install browserify-zlib
+// npm install @jup-ag/core
