@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { PublicKey } from '@solana/web3.js';
+import { IoClose } from 'react-icons/io5';
+import { toast } from 'react-toastify';
 import phantom from '../assets/phantom.svg';
 import solfare from '../assets/solfare.svg';
-import { IoClose } from 'react-icons/io5';
 
 const Navbar = ({ onWalletConnect }) => {
   const [isConnected, setIsConnected] = useState(false);
@@ -86,11 +86,14 @@ const Navbar = ({ onWalletConnect }) => {
       }
 
       handleSuccessfulConnection(publicKey, wallet);
+      toast.success("Wallet connected successfully");
       setIsOpen(false);
     } catch (error) {
       console.error(`Error connecting to ${walletName} wallet:`, error);
+      toast.error(`Error connecting to ${walletName} wallet: ${error.message}`);
     } finally {
       setIsConnecting(false);
+      setIsOpen(false);
     }
   };
 
@@ -109,7 +112,6 @@ const Navbar = ({ onWalletConnect }) => {
       ) : (
         <p className="text-[14px] font-sans text-red-500">Not detected</p>
       )}
-      {isConnecting && <div className="loading-indicator">...</div>}
     </button>
   );
 

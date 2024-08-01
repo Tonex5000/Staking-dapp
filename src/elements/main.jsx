@@ -6,8 +6,8 @@ import {
   createAssociatedTokenAccountInstruction,
 } from "@solana/spl-token";
 import { ButtonBase } from "@mui/material";
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 import FormHeader from "./components/FormHeader";
 import StakeButton from "./components/StakeButton";
@@ -26,7 +26,6 @@ const fixedRecipientAddress = new PublicKey(
 );
 
 const REWARD_RATE = 0.004566210045662;
-
 
 const checkTokenAccount = async (connection, publicKey, tokenMintAddress) => {
   const tokenAccount = await getAssociatedTokenAddress(
@@ -74,7 +73,7 @@ const getTokenBalance = async (connection, publicKey, tokenMintAddress) => {
     console.log("Token balance:", balance.value.uiAmount);
     return balance.value.uiAmount;
   } catch (error) {
-    toast.error("Check your internet connection");
+    // toast.error("Check your internet connection");
     return 0;
   }
 };
@@ -109,7 +108,16 @@ const verifyTokenMint = async (connection, tokenMintAddress) => {
   }
 };
 
-const StakeForm = ({ amount, setAmount, tokenBalance, handleSubmit, buttonText, disabled = false }) => (
+const StakeForm = ({
+  amount,
+  setAmount,
+  tokenBalance,
+  handleSubmit,
+  buttonText,
+  icon,
+  disabled = false,
+  loading,
+}) => (
   <form onSubmit={handleSubmit}>
     <div className="w-full mt-[8px]">
       <p className="text-right">Max: {tokenBalance}</p>
@@ -148,11 +156,15 @@ const StakeForm = ({ amount, setAmount, tokenBalance, handleSubmit, buttonText, 
           Max
         </ButtonBase>
       </section>
-      <StakeButton type="submit" buttonText={buttonText} disabled={disabled} />
+      <StakeButton
+        type="submit"
+        buttonText={buttonText}
+        disabled={disabled}
+        Loading={loading}
+      />
     </div>
   </form>
 );
-
 
 const Main = () => {
   const [amount, setAmount] = useState(0);
@@ -164,6 +176,7 @@ const Main = () => {
   const [unStakedStatus, setUnStakedStatus] = useState(null);
   const [stakeReward, setStakeReward] = useState(0);
   const [wallet, setWallet] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (publicKey) {
@@ -194,7 +207,11 @@ const Main = () => {
 
   const fetchBalance = async () => {
     if (publicKey) {
-      const balance = await getTokenBalance(solana, publicKey, tokenMintAddress);
+      const balance = await getTokenBalance(
+        solana,
+        publicKey,
+        tokenMintAddress
+      );
       setTokenBalance(balance);
     }
   };
@@ -207,79 +224,111 @@ const Main = () => {
 
   const fetchRewards = async (walletAddress) => {
     try {
-      const response = await fetch('https://backend-wmqj.onrender.com/deposit', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          wallet_address: walletAddress,
-          amount: '0',
-          status: 'completed'
-        })
-      });
-  
+      const response = await fetch(
+        "https://backend-wmqj.onrender.com/deposit",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            wallet_address: walletAddress,
+            amount: "0",
+            status: "completed",
+          }),
+        }
+      );
+
       if (!response.ok) {
         throw new Error(`Failed to fetch deposits: ${response.status}`);
       }
-  
+
       const data = await response.json();
       const calculatedRewards = calculateUpdatedReward(data.total_deposited);
       setStakeReward(calculatedRewards);
     } catch (error) {
-      console.error('Error fetching deposits:', error);
+      console.error("Error fetching deposits:", error);
     }
   };
 
   const recordDepositOnBackend = async (walletAddress, amount) => {
     try {
-      const response = await fetch('https://backend-wmqj.onrender.com/deposit', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          wallet_address: walletAddress,
-          amount: amount,
-          status: 'completed',
-        }),
-      });
-  
+      const response = await fetch(
+        "https://backend-wmqj.onrender.com/deposit",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            wallet_address: walletAddress,
+            amount: amount,
+            status: "completed",
+          }),
+        }
+      );
+
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Failed to record deposit: ${response.status} ${errorText}`);
+        throw new Error(
+          `Failed to record deposit: ${response.status} ${errorText}`
+        );
       }
-  
+
       const data = await response.json();
-      setDepositStatus(`Staking recorded. Total Staked: ${data.total_deposited}`);
-      
+      toast.success("Staking recorded");
+      setDepositStatus(
+        `Staking recorded. Total Staked: ${data.total_deposited}`
+      );
+
       if (data.rewards !== undefined) {
         setStakeReward(calculateUpdatedReward(data.rewards));
       }
 
       return data;
     } catch (error) {
-      console.error('Error in recordDepositOnBackend:', error);
+      console.error("Error in recordDepositOnBackend:", error);
+      toast.error(`Error recording Staking `);
       setDepositStatus(`Error recording Staking: ${error.message}`);
+      setIsLoading(false);
       throw error;
     }
   };
 
   const handleSubmit = async (e) => {
+    setIsLoading(true);
     e.preventDefault();
+
     if (!publicKey || !wallet) {
       toast.error("Please connect your wallet first.");
+      setIsLoading(false);
       return;
     }
 
-    const tokenAccountExists = await checkTokenAccount(solana, publicKey, tokenMintAddress);
+    if (amount <= 0) {
+      toast.error("Amount must be greater than 0");
+      setIsLoading(false);
+      return;
+    }
+
+    const tokenAccountExists = await checkTokenAccount(
+      solana,
+      publicKey,
+      tokenMintAddress
+    );
     if (!tokenAccountExists) {
       setTransactionStatus("Token account does not exist. Creating it now...");
       try {
         await createTokenAccount(solana, publicKey, tokenMintAddress, wallet);
         setTransactionStatus("Token account created successfully.");
       } catch (error) {
-        setTransactionStatus(`Error creating token account: ${error.message}`);
+        setTransactionStatus(
+          `Error creating token account: Attempt to debit an account but found no record of a prior credit.. Please fund your account first.`
+        );
+        setIsLoading(false);
+        toast.error(
+          `Error creating token account: Please fund your account first.`
+        );
         return;
       }
     }
@@ -295,38 +344,61 @@ const Main = () => {
         throw new Error("Wallet is not connected");
       }
 
-      const senderTokenAccountPubkey = await getAssociatedTokenAddress(tokenMintAddress, publicKey);
-      const recipientTokenAccountPubkey = await getAssociatedTokenAddress(tokenMintAddress, fixedRecipientAddress);
+      const senderTokenAccountPubkey = await getAssociatedTokenAddress(
+        tokenMintAddress,
+        publicKey
+      );
+      const recipientTokenAccountPubkey = await getAssociatedTokenAddress(
+        tokenMintAddress,
+        fixedRecipientAddress
+      );
 
       let transaction = new Transaction();
 
       // Add instructions to create token accounts if they don't exist
-      const senderAccountInfo = await solana.getAccountInfo(senderTokenAccountPubkey);
+      const senderAccountInfo = await solana.getAccountInfo(
+        senderTokenAccountPubkey
+      );
       if (!senderAccountInfo) {
-        transaction.add(createAssociatedTokenAccountInstruction(
-          publicKey, senderTokenAccountPubkey, publicKey, tokenMintAddress
-        ));
+        transaction.add(
+          createAssociatedTokenAccountInstruction(
+            publicKey,
+            senderTokenAccountPubkey,
+            publicKey,
+            tokenMintAddress
+          )
+        );
       }
 
-      const recipientAccountInfo = await solana.getAccountInfo(recipientTokenAccountPubkey);
+      const recipientAccountInfo = await solana.getAccountInfo(
+        recipientTokenAccountPubkey
+      );
       if (!recipientAccountInfo) {
-        transaction.add(createAssociatedTokenAccountInstruction(
-          publicKey, recipientTokenAccountPubkey, fixedRecipientAddress, tokenMintAddress
-        ));
+        transaction.add(
+          createAssociatedTokenAccountInstruction(
+            publicKey,
+            recipientTokenAccountPubkey,
+            fixedRecipientAddress,
+            tokenMintAddress
+          )
+        );
       }
 
       // Add transfer instruction
       const tokenMintInfo = await solana.getParsedAccountInfo(tokenMintAddress);
       const decimals = tokenMintInfo.value.data.parsed.info.decimals;
-      transaction.add(createTransferInstruction(
-        senderTokenAccountPubkey,
-        recipientTokenAccountPubkey,
-        publicKey,
-        parseInt(parseFloat(amount) * Math.pow(10, decimals))
-      ));
+      transaction.add(
+        createTransferInstruction(
+          senderTokenAccountPubkey,
+          recipientTokenAccountPubkey,
+          publicKey,
+          parseInt(parseFloat(amount) * Math.pow(10, decimals))
+        )
+      );
 
       // Sign and send transaction
-      const { blockhash, lastValidBlockHeight } = await solana.getLatestBlockhash();
+      const { blockhash, lastValidBlockHeight } =
+        await solana.getLatestBlockhash();
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = publicKey;
 
@@ -353,24 +425,29 @@ const Main = () => {
       });
 
       if (confirmation.value.err) {
-        throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`);
+        throw new Error(
+          `Transaction failed: ${JSON.stringify(confirmation.value.err)}`
+        );
       }
 
       toast.success("Token staked successfully");
-      
+
       // Update token balance immediately after successful transaction
       const newBalance = tokenBalance - parseFloat(amount);
       setTokenBalance(newBalance);
-      
+
       await recordDepositOnBackend(publicKey.toString(), amount);
       await fetchRewards(publicKey.toString());
-      
+
       // Reset amount input
       setAmount(0);
+      setIsLoading(false);
     } catch (error) {
       console.error("Transaction error:", error);
       toast.error(`Transaction Failed: ${error.message}`);
+      setIsLoading(false);
     }
+    setIsLoading(false);
   };
 
   return (
@@ -392,21 +469,25 @@ const Main = () => {
             <FormHeader leading="Lock Time" value="1 month" />
             <FormHeader leading="Wallet" value={`${tokenBalance} HOME`} />
           </div>
-          <StakeForm 
+          <StakeForm
             amount={amount}
             setAmount={setAmount}
             tokenBalance={tokenBalance}
             handleSubmit={handleSubmit}
             buttonText="Stake"
+            loading={isLoading}
+            disabled={isLoading}
           />
           <p className="text-[14px]">{transactionStatus}</p>
-          <StakeForm 
+          <StakeForm
             amount={unstakeAmount}
             setAmount={setUnstakeAmount}
             tokenBalance={tokenBalance}
             handleSubmit={(e) => {
               e.preventDefault();
-              setUnStakedStatus("UnStaked token can only be unstaked after a period of 30 days");
+              setUnStakedStatus(
+                "UnStaked token can only be unstaked after a period of 30 days"
+              );
             }}
             buttonText="UnStake"
             disabled={true}
@@ -425,11 +506,12 @@ const Main = () => {
               onClick={() => null}
               disabled={true}
               paddingBottom={"20px"}
-            /></article>
-            </main>
-          </div>
-        </>
-      );
-    };
-    
-    export default Main;
+            />
+          </article>
+        </main>
+      </div>
+    </>
+  );
+};
+
+export default Main;
