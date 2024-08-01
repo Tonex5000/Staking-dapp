@@ -4,65 +4,114 @@ import phantom from '../assets/phantom.svg';
 import solfare from '../assets/solfare.svg';
 import { IoClose } from 'react-icons/io5';
 
-const Navbar = ({ connectWallet, publicKey }) => {
+const Navbar = ({ onWalletConnect }) => {
   const [isConnected, setIsConnected] = useState(false);
+  const [publicKey, setPublicKey] = useState(null);
   const [address, setAddress] = useState('');
   const [isOpen, setIsOpen] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false); // Add loading state
+  const [isConnecting, setIsConnecting] = useState(false);
   const [walletDetected, setWalletDetected] = useState({
     phantom: false,
     solflare: false,
   });
 
   useEffect(() => {
-    // Check if Phantom or Solflare is detected
-    setWalletDetected({
-      phantom: !!(window.solana && window.solana.isPhantom),
-      solflare: !!window.solflare,
-    });
+    const checkWallets = () => {
+      setWalletDetected({
+        phantom: !!(window.solana && window.solana.isPhantom),
+        solflare: !!(window.solflare && window.solflare.isSolflare),
+      });
+    };
+
+    checkWallets();
+    window.addEventListener('load', checkWallets);
+    return () => window.removeEventListener('load', checkWallets);
   }, []);
 
-  const ConnectBtn = ({ image, connect, isDetected, isworking, connectWallet }) => (
-    <button
-      onClick={() => {
-        if (isworking) {
-          setIsConnecting(true); // Show loading indicator
-          connectWallet(connect.toLowerCase())
-            .then(() => setIsConnecting(false)) // Hide loading indicator on success
-            .catch((error) => {
-              console.error('Wallet connection error:', error);
-              setIsConnecting(false); // Hide loading indicator on failure
-            });
-          setIsOpen(false);
+  useEffect(() => {
+    const checkWalletConnection = async () => {
+      if (window.solana && window.solana.isPhantom) {
+        try {
+          const response = await window.solana.connect({ onlyIfTrusted: true });
+          handleSuccessfulConnection(response.publicKey, window.solana);
+        } catch (error) {
+          console.log("Phantom wallet not connected");
         }
-      }}
+      } else if (window.solflare && window.solflare.isSolflare) {
+        try {
+          const response = await window.solflare.connect({ onlyIfTrusted: true });
+          handleSuccessfulConnection(response.publicKey, window.solflare);
+        } catch (error) {
+          console.log("Solflare wallet not connected");
+        }
+      }
+    };
+
+    checkWalletConnection();
+  }, []);
+
+  const handleSuccessfulConnection = (publicKey, walletInstance) => {
+    setPublicKey(publicKey);
+    setIsConnected(true);
+    const pubKeyString = publicKey.toString();
+    setAddress(pubKeyString.slice(0, 4) + '...' + pubKeyString.slice(-4));
+    onWalletConnect(publicKey, walletInstance);
+  };
+
+  const connectWallet = async (walletName) => {
+    setIsConnecting(true);
+    try {
+      let wallet;
+      if (walletName === 'phantom') {
+        wallet = window.solana;
+      } else if (walletName === 'solflare') {
+        wallet = window.solflare;
+      }
+
+      if (!wallet) {
+        throw new Error(`${walletName} wallet is not installed!`);
+      }
+
+      let publicKey;
+      if (walletName === 'phantom') {
+        const response = await wallet.connect();
+        publicKey = response.publicKey;
+      } else if (walletName === 'solflare') {
+        await wallet.connect();
+        publicKey = wallet.publicKey;
+      }
+
+      if (!publicKey) {
+        throw new Error("Unable to retrieve public key from wallet");
+      }
+
+      handleSuccessfulConnection(publicKey, wallet);
+      setIsOpen(false);
+    } catch (error) {
+      console.error(`Error connecting to ${walletName} wallet:`, error);
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const ConnectBtn = ({ image, connect, isDetected }) => (
+    <button
+      onClick={() => connectWallet(connect.toLowerCase())}
       className="w-full flex items-center justify-between px-[24px] hover:bg-[#181d30] py-[20px] cursor-pointer rounded-none"
+      disabled={isConnecting || !isDetected}
     >
       <div className="flex items-center space-x-2">
         <img src={image} alt={`${connect} logo`} className="w-[28px] h-[28px] rounded-[5px]" />
         <p className="text-[18px] font-sans">{connect}</p>
       </div>
-      {isDetected && (
+      {isDetected ? (
         <p className="text-[14px] font-sans text-gray-600">Detected</p>
+      ) : (
+        <p className="text-[14px] font-sans text-red-500">Not detected</p>
       )}
       {isConnecting && <div className="loading-indicator">...</div>}
     </button>
   );
-
-  useEffect(() => {
-    if (publicKey) {
-      const pubKeyInstance = new PublicKey(publicKey);
-      setAddress(
-        pubKeyInstance.toString().slice(0, 4) +
-        '...' +
-        pubKeyInstance.toString().slice(-4)
-      );
-      setIsConnected(true);
-    } else {
-      setAddress('');
-      setIsConnected(false);
-    }
-  }, [publicKey]);
 
   return (
     <>
@@ -80,26 +129,28 @@ const Navbar = ({ connectWallet, publicKey }) => {
           onClick={() => setIsOpen(false)}
           className="fixed z-[1050] top-0 left-0 right-0 bottom-0 bg-[#00000080] flex items-center justify-center"
         >
-          <section className="bg-[#11141F] max-w-[400px] rounded-[10px] z-[1060] py-[16px] pb-[30px] relative">
-            <div className="flex justify-center items-center h-[40px] w-[40px] rounded-full bg-[#1A1F2E] absolute top-[20px] right-[20px] cursor-pointer">
-              <IoClose onClick={() => setIsOpen((prev) => !prev)} size={24} />
+          <section 
+            className="bg-[#11141F] max-w-[400px] rounded-[10px] z-[1060] py-[16px] pb-[30px] relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div 
+              className="flex justify-center items-center h-[40px] w-[40px] rounded-full bg-[#1A1F2E] absolute top-[20px] right-[20px] cursor-pointer"
+              onClick={() => setIsOpen(false)}
+            >
+              <IoClose size={24} />
             </div>
             <section className="p-12">
               <h2 className="text-[24px] font-sans">Connect a wallet on Solana to continue</h2>
             </section>
             <ConnectBtn
               connect="Phantom"
-              connectWallet={connectWallet}
               image={phantom}
               isDetected={walletDetected.phantom}
-              isworking={walletDetected.phantom}
             />
             <ConnectBtn
-              connect="Solfare"
-              connectWallet={connectWallet}
+              connect="Solflare"
               image={solfare}
               isDetected={walletDetected.solflare}
-              isworking={walletDetected.solflare}
             />
           </section>
         </div>
