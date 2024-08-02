@@ -1,6 +1,7 @@
 /* eslint-disable react/prop-types */
 
 import loading from "../../assets/91.svg";
+import Loader from "../circle-loader/Loader";
 
 const StakeButton = ({
   buttonText,
@@ -14,9 +15,9 @@ const StakeButton = ({
     type={type}
     onClick={onClick}
     disabled={disabled}
-    className={`bg-[#77787D] w-full py-2 rounded-[20px] my-[24px] uppercase text-white text-[20px] font-[400] tracking-[0.5714px] leading-[35px] mb-${paddingBottom}`}
+    className={`bg-[#77787D] w-full py-2 rounded-[20px] my-[24px] uppercase text-white text-[20px] font-[400] tracking-[0.5714px] leading-[35px] flex justify-center items-center  mb-${paddingBottom} h-[4rem] ${loading === true && "opacity-50"}`}
   >
-    {Loading ? <img src={loading} alt="loading" className="w-[26px] py-[5px] mx-auto" /> : buttonText}
+    {Loading ? <Loader /> : buttonText}
   </button>
 );
 

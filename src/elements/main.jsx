@@ -74,7 +74,6 @@ const getTokenBalance = async (connection, publicKey, tokenMintAddress) => {
     console.log("Token balance:", balance.value.uiAmount);
     return balance.value.uiAmount;
   } catch (error) {
-    toast.error("Check your internet connection");
     return 0;
   }
 };
@@ -109,7 +108,7 @@ const verifyTokenMint = async (connection, tokenMintAddress) => {
   }
 };
 
-const StakeForm = ({ amount, setAmount, tokenBalance, handleSubmit, buttonText, disabled = false }) => (
+const StakeForm = ({ amount, setAmount, tokenBalance, handleSubmit, buttonText, disabled = false, loading }) => (
   <form onSubmit={handleSubmit}>
     <div className="w-full mt-[8px]">
       <p className="text-right">Max: {tokenBalance}</p>
@@ -148,7 +147,7 @@ const StakeForm = ({ amount, setAmount, tokenBalance, handleSubmit, buttonText, 
           Max
         </ButtonBase>
       </section>
-      <StakeButton type="submit" buttonText={buttonText} disabled={disabled} />
+      <StakeButton type="submit" buttonText={buttonText} disabled={disabled} Loading={loading} />
     </div>
   </form>
 );
@@ -164,6 +163,8 @@ const Main = () => {
   const [unStakedStatus, setUnStakedStatus] = useState(null);
   const [stakeReward, setStakeReward] = useState(0);
   const [wallet, setWallet] = useState(null);
+  const [stakeLoading, setStakeLoading] = useState(false)
+  const [unstakeLoading, setUnStakeLoading] = useState(true)
 
   useEffect(() => {
     if (publicKey) {
@@ -218,11 +219,11 @@ const Main = () => {
           status: 'completed'
         })
       });
-  
+
       if (!response.ok) {
         throw new Error(`Failed to fetch deposits: ${response.status}`);
       }
-  
+
       const data = await response.json();
       const calculatedRewards = calculateUpdatedReward(data.total_deposited);
       setStakeReward(calculatedRewards);
@@ -244,15 +245,15 @@ const Main = () => {
           status: 'completed',
         }),
       });
-  
+
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`Failed to record deposit: ${response.status} ${errorText}`);
       }
-  
+
       const data = await response.json();
       setDepositStatus(`Staking recorded. Total Staked: ${data.total_deposited}`);
-      
+
       if (data.rewards !== undefined) {
         setStakeReward(calculateUpdatedReward(data.rewards));
       }
@@ -271,6 +272,7 @@ const Main = () => {
       toast.error("Please connect your wallet first.");
       return;
     }
+    setStakeLoading(true)
 
     const tokenAccountExists = await checkTokenAccount(solana, publicKey, tokenMintAddress);
     if (!tokenAccountExists) {
@@ -357,20 +359,24 @@ const Main = () => {
       }
 
       toast.success("Token staked successfully");
-      
+
       // Update token balance immediately after successful transaction
       const newBalance = tokenBalance - parseFloat(amount);
       setTokenBalance(newBalance);
-      
+
       await recordDepositOnBackend(publicKey.toString(), amount);
       await fetchRewards(publicKey.toString());
-      
+
       // Reset amount input
       setAmount(0);
+
     } catch (error) {
       console.error("Transaction error:", error);
       toast.error(`Transaction Failed: ${error.message}`);
+    } finally {
+      setStakeLoading(false)
     }
+    setStakeLoading(false)
   };
 
   return (
@@ -392,15 +398,16 @@ const Main = () => {
             <FormHeader leading="Lock Time" value="1 month" />
             <FormHeader leading="Wallet" value={`${tokenBalance} HOME`} />
           </div>
-          <StakeForm 
+          <StakeForm
             amount={amount}
             setAmount={setAmount}
             tokenBalance={tokenBalance}
             handleSubmit={handleSubmit}
             buttonText="Stake"
+            loading={stakeLoading}
           />
           <p className="text-[14px]">{transactionStatus}</p>
-          <StakeForm 
+          <StakeForm
             amount={unstakeAmount}
             setAmount={setUnstakeAmount}
             tokenBalance={tokenBalance}
@@ -426,10 +433,10 @@ const Main = () => {
               disabled={true}
               paddingBottom={"20px"}
             /></article>
-            </main>
-          </div>
-        </>
-      );
-    };
-    
-    export default Main;
+        </main>
+      </div>
+    </>
+  );
+};
+
+export default Main;
