@@ -17,37 +17,27 @@ const Navbar = ({ onWalletConnect }) => {
 
   useEffect(() => {
     const checkWallets = () => {
-      setWalletDetected({
-        phantom: !!(window.solana && window.solana.isPhantom),
-        solflare: !!(window.solflare && window.solflare.isSolflare),
-      });
+      setTimeout(() => {
+        console.log("Checking for wallets...");
+        console.log("Solana object:", window.solana);
+        console.log("Solflare object:", window.solflare);
+        
+        const phantomDetected = !!(window.solana && window.solana.isPhantom);
+        const solflareDetected = !!(window.solflare && window.solflare.isSolflare);
+        
+        console.log("Phantom detected:", phantomDetected);
+        console.log("Solflare detected:", solflareDetected);
+
+        setWalletDetected({
+          phantom: phantomDetected,
+          solflare: solflareDetected,
+        });
+      }, 500); // 500ms delay
     };
 
     checkWallets();
     window.addEventListener('load', checkWallets);
     return () => window.removeEventListener('load', checkWallets);
-  }, []);
-
-  useEffect(() => {
-    const checkWalletConnection = async () => {
-      if (window.solana && window.solana.isPhantom) {
-        try {
-          const response = await window.solana.connect({ onlyIfTrusted: true });
-          handleSuccessfulConnection(response.publicKey, window.solana);
-        } catch (error) {
-          console.log("Phantom wallet not connected");
-        }
-      } else if (window.solflare && window.solflare.isSolflare) {
-        try {
-          const response = await window.solflare.connect({ onlyIfTrusted: true });
-          handleSuccessfulConnection(response.publicKey, window.solflare);
-        } catch (error) {
-          console.log("Solflare wallet not connected");
-        }
-      }
-    };
-
-    checkWalletConnection();
   }, []);
 
   const handleSuccessfulConnection = (publicKey, walletInstance) => {
@@ -59,6 +49,7 @@ const Navbar = ({ onWalletConnect }) => {
   };
 
   const connectWallet = async (walletName) => {
+    console.log(`Attempting to connect to ${walletName}`);
     setIsConnecting(true);
     try {
       let wallet;
@@ -120,7 +111,14 @@ const Navbar = ({ onWalletConnect }) => {
       <div className="w-full flex flex-col justify-end items-baseline h-[15vh] md:h-[20vh]">
         <button
           className="bg-transparent px-[25px] py-[10px] text-[16px] border-white border-[2px] font-[900] rounded-[10px] text-white self-end"
-          onClick={() => setIsOpen(true)}
+          onClick={() => {
+            if (isConnected) {
+              // Handle disconnection if needed
+              console.log("Wallet disconnection not implemented");
+            } else {
+              setIsOpen(true);
+            }
+          }}
         >
           {isConnected ? address : 'Select Wallet'}
         </button>
@@ -131,6 +129,7 @@ const Navbar = ({ onWalletConnect }) => {
           onClick={() => setIsOpen(false)}
           className="fixed z-[1050] top-0 left-0 right-0 bottom-0 bg-[#00000080] flex items-center justify-center"
         >
+          {console.log("Modal opened")}
           <section 
             className="bg-[#11141F] max-w-[400px] rounded-[10px] z-[1060] py-[16px] pb-[30px] relative"
             onClick={(e) => e.stopPropagation()}
